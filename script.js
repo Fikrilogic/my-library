@@ -1,6 +1,6 @@
 let myLibrary = [];
 let libraryDefault = [];
-let id = 1
+let book;
 
 const storage = window.localStorage;
 
@@ -16,7 +16,12 @@ class books {
         this.pages = pages;
         this.isRead = isRead;
     }
+
+    set status(information) {
+        return this.isRead = information
+    }
 }
+
 
 function addToLibrary(books) {
     let obj = {
@@ -25,39 +30,59 @@ function addToLibrary(books) {
         pages: books.pages,
         isRead: books.isRead
     }
+
     myLibrary = JSON.parse(storage.getItem('library'))
+    if(myLibrary.some(book => book.title === books.title)) return false
     myLibrary.push(obj);
-    updateStorage(myLibrary);
+    updateStorage();
+    return true;
 }
 
-function updateBook(title, status) {
-    const library = JSON.parse(storage.getItem('library'));
-    library.map( data => {
-        data.title === title ? data.status = status : 'not find'
-    })
-    updateStorage(library);
-
-}
-
-function deleteBook(title) {
-    const library = JSON.parse(storage.getItem('library'));
-    let index = library.indexOf(data => data.title === title);
-    const newLibrary = library.splice(index, 1);
-    updateStorage(newLibrary);
-}
-
-
-function getBook() {
-    const submit = form.querySelector('#submit');
+function getBook(title) {
+    myLibrary = JSON.parse(storage.getItem('library'));
     
-    submit.addEventListener('click', (e) => {
-        const status = form.querySelector('#status').value;
+    for(let lib of myLibrary) {
+        if(lib.title === title){
+            return lib
+        }
+    }
+
+    return null
+}
+
+function deleteBook(index) {
+    myLibrary = JSON.parse(storage.getItem('library'));  
+    if(!index) {
+        myLibrary.shift()
+    } else {
+        myLibrary.splice(index, 1);
+    }
+    updateStorage();
+    window.location.reload();
+}
+
+
+function setBook() {
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        let status = form.querySelector('#status');
         const title = form.querySelector('#title').value;
         const author = form.querySelector('#author').value;
         const pages = form.querySelector('#pages').value;
 
-        const book = new books(title, author, pages, status);
-        addToLibrary(book);
+        if(status.checked === true) {
+            status = true
+        } else if (status.checked === false) {
+            status = false
+        }
+        book = new books(title, author, pages, status);
+        if(addToLibrary(book)) {
+            hiddenModal();
+            form.reset()
+            window.location.reload()
+        } else {
+            alert('book exists in your library')
+        };
     })
 }
 
@@ -80,82 +105,111 @@ function closeModal() {
             modal.classList.remove('display');
         }
     })
-
 }
 
-function updateStorage(library) {
-    storage.setItem('library', JSON.stringify(library));
+function hiddenModal() {
+    modal.classList.remove('display')
+}
+
+function updateStorage() {
+    storage.setItem('library', JSON.stringify(myLibrary));
 }
 
 function checkStorage() {
-    // if(storage.getItem('library')) {
+    if(storage.getItem('library')) {
         myLibrary = JSON.parse(storage.getItem('library'));
         return myLibrary;
-    // } else {
-
-    // }
+    } else {
+        myLibrary = []
+        updateStorage();
+    }
 }
 
 function setData() {
     const library = checkStorage();
-    library.map(value => {
-        const cards = renderData(value);
-        card.insertAdjacentHTML('beforeend', cards);
-        card.addEventListener('click', buttonCard)
-    })
+    if(!library) {
+        alert('empty data')
+    } else {
+        library.map((value, index) => {
+            if(value.isRead === true) {
+                value.isRead = 'is Read'
+            }
+
+            if(value.isRead === false) {
+                value.isRead = 'Not Read'
+            }
+            const cards = renderData(value,index);
+            card.insertAdjacentHTML('beforeend', cards);
+            card.addEventListener('click', buttonCard)
+        })
+    }
 } 
 
 function buttonCard(e) {
     if(e.target.classList.contains('delete')) {
-        const bookEl = e.target.parentNode.previousElementSibling;
-        const parent = e.target.parentNode.parentNode.parentNode;
         const child = e.target.parentNode.parentNode;
-        deleteBook(bookEl.firstChild.nextElementSibling.innerHTML);
-        parent.removeChild(child);
+        deleteBook(child.dataset.index);
+        const container = document.querySelector('.card');
+        container.removeChild(child);
     } else if(e.target.classList.contains('status')) {
         const bookEl = e.target.parentNode.previousElementSibling;
         if(e.target.innerHTML === 'Not Read') {
             const title = bookEl.firstChild.nextElementSibling.innerHTML
-            updateBook(title, 'is Read')
+            let book = getBook(title);
+            book.isRead = true
+            e.target.innerHTML = 'is Read'
             e.target.style.backgroundColor = 'var(--add)'
             e.target.style.color = 'var(--neutral)'
-        } else {
+            updateStorage()
+        } else if(e.target.innerHTML === 'is Read') {
             const title = bookEl.firstChild.nextElementSibling.innerHTML
-            updateBook(title, 'is Read')
-            e.target.style.backgroundColor = 'var(--neutral)'
+            let book = getBook(title);
+            book.isRead = false
+            e.target.innerHTML = 'Not Read'
+            e.target.style.backgroundColor = 'var(--remove)'
             e.target.style.color = 'var(--black)'
+            updateStorage();
         }
     }
 }
 
-function renderData(data) {
-    let read = '';
-    if(data.read === 'on') {
-        read = 'is Read'
-    } else {
-        read = 'Not Read'
-    }
-    return `
-        <div class="card-content">
+function renderData(data,index) {
+    if(data.isRead === 'is Read') {
+        return `
+        <div class="card-content" data-index="${index}">
                 <div class="book">
-                    <h3 class="title">"${data.title}"</h3>
+                    <h3 class="title">${data.title}</h3>
                     <h3 class="author">${data.author}</h3>
                     <h3 class="pages">${data.pages}</h3>
                 </div>
                 <div class="button-content">
-                    <button class="status">${read}</button>
+                    <button class="status" style="background-color: var(--add)">${data.isRead}</button>
                     <button class="delete">Delete</button>
                 </div>
             </div>
         `
+    } else if(data.isRead === 'Not Read') {
+        return `
+        <div class="card-content" data-index="${index}">
+                <div class="book">
+                    <h3 class="title">${data.title}</h3>
+                    <h3 class="author">${data.author}</h3>
+                    <h3 class="pages">${data.pages}</h3>
+                </div>
+                <div class="button-content">
+                    <button class="status" style="background-color: var(--remove)">${data.isRead}</button>
+                    <button class="delete">Delete</button>
+                </div>
+            </div>
+        `
+    }
 } 
 
 function main() {
+    setData();
+    setBook();
     toogleModal();
     closeModal();
-    checkStorage();
-    getBook();
-    setData();
 }
 
 main()
