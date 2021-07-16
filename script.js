@@ -128,7 +128,7 @@ function checkStorage() {
 function setData() {
     const library = checkStorage();
     if(!library) {
-        alert('empty data')
+        alert('Hello')
     } else {
         library.map((value, index) => {
             if(value.isRead === true) {
